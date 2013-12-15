@@ -1,0 +1,138 @@
+#!/bin/sh
+
+SELF="$0"
+VERSION="0.0.1"
+VERBOSE=0
+CLEAN=0
+stdin=0
+stdout=1
+stderr=2
+dir="`pwd`"
+deps="deps"
+argv=${@}
+argc="${#}"
+
+version () {
+  echo $VERSION
+}
+
+fprintf () {
+  {
+    printf "${@:2}"
+  } >&$1
+}
+
+verbose () {
+  if [ "1" -eq "$VERBOSE" ]
+  then
+    printf "verbose: %s\n" "$@"
+  fi
+}
+
+info () {
+  printf "   %s\n" "$@"
+}
+
+warn () {
+  printf "warn: %s\n" "$@"
+}
+
+error () {
+  fprintf $stderr "$@"
+  fprintf $stderr "\n"
+}
+
+usage () {
+  echo "usage: clib-build [-hcvV] [-d <dir>] [-i <deps>]"
+
+  if [ "$1" = "1" ]; then
+    echo
+    echo "example:"
+    echo "  $ clib build -d ~/repos/libsomething --verbose"
+    echo
+    echo "options:"
+    echo "  -h, --help              display this message"
+    echo "  -V, --version           output version"
+    echo "  -v, --verbose           show verbose output"
+    echo "  -c, --clean             clean dependencies (make clean)"
+    echo "  -d, --directory <dir>   input directory (default: ./)"
+    echo "  -i, --include <dir>     dependency include directory (default: ./deps)"
+  fi
+}
+
+while true; do
+  arg="$1"
+
+  if [ "" = "$1" ]; then
+    break;
+  fi
+
+  if [ "${arg:0:1}" != "-" ]; then
+    continue
+  fi
+
+  case $arg in
+    -c|--clean)
+      CLEAN=1;
+      shift;
+      ;;
+    -v|--verbose)
+      VERBOSE=1;
+      shift;
+      ;;
+    -i|--include)
+      deps="$2";
+      shift 2;
+      ;;
+    -d|--directory)
+      dir="$2";
+      shift 2;
+      ;;
+    -h|--help)
+      usage 1
+      exit 1
+      ;;
+    -V|--version)
+      version
+      exit 0
+      ;;
+    *)
+      error "unknown option \`$arg'"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+deps="$dir/$deps"
+verbose "path = '$dir'"
+verbose "deps path = '$deps'"
+
+if ! test -d $deps; then
+  warn "no dependencies"
+else
+  dep_files="`ls ${deps}`"
+
+  for dep in "$dep_files"; do
+    path="${deps}/$dep"
+    if test -d "${path}/deps"; then
+      $SELF -d ${path}
+    fi
+
+    verbose "make ${MAKEARGS} -C ${path}"
+
+    if [ "1" -eq "$CLEAN" ]; then
+      info "clean: '${dep}'"
+      {
+        make clean -C "${path}"
+      } > /dev/null;
+    else
+      info "build: '${dep}'"
+      {
+        make ${MAKEARGS} -C "${path}"
+      } > /dev/null;
+    fi
+  done
+fi
+
+exit $?
