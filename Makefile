@@ -6,6 +6,12 @@ TESTDIR ?= test
 
 all: clean test
 
+install:
+	install $(BIN) $(PREFIX)/bin
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(BIN)
+
 clean:
 	@./$(BIN) -c -v -d $(TESTDIR)
 
