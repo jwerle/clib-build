@@ -4,9 +4,11 @@ SELF="$0"
 VERSION="0.0.1"
 VERBOSE=0
 CLEAN=0
-stdin=0
-stdout=1
-stderr=2
+TEST=0
+NULL=/dev/null
+STDIN=0
+STDOUT=1
+STDERR=2
 dir="`pwd`"
 deps="deps"
 argv=${@}
@@ -38,8 +40,8 @@ warn () {
 }
 
 error () {
-  fprintf $stderr "$@"
-  fprintf $stderr "\n"
+  fprintf $STDERR "$@"
+  fprintf $STDERR "\n"
 }
 
 usage () {
@@ -55,6 +57,7 @@ usage () {
     echo "  -V, --version           output version"
     echo "  -v, --verbose           show verbose output"
     echo "  -c, --clean             clean dependencies (make clean)"
+    echo "  -t, --test              test dependencies (make test)"
     echo "  -d, --directory <dir>   input directory (default: ./)"
     echo "  -i, --include <dir>     dependency include directory (default: ./deps)"
   fi
@@ -68,6 +71,7 @@ while true; do
   fi
 
   if [ "${arg:0:1}" != "-" ]; then
+    shift
     continue
   fi
 
@@ -75,6 +79,10 @@ while true; do
     -c|--clean)
       CLEAN=1;
       shift;
+      ;;
+    -t|--test)
+      TEST=1;
+      shift
       ;;
     -v|--verbose)
       VERBOSE=1;
@@ -119,18 +127,43 @@ else
       $SELF -d ${path}
     fi
 
-    verbose "make ${MAKEARGS} -C ${path}"
-
     if [ "1" -eq "$CLEAN" ]; then
-      info "clean: '${dep}'"
-      {
+      verbose "make clean -C ${path}"
+      info "clean: '${dep}'"; {
         make clean -C "${path}"
-      } > /dev/null;
+      } > $NULL;
     else
-      info "build: '${dep}'"
-      {
+      verbose "make ${MAKEARGS} -C ${path}"
+      info "build: '${dep}'"; {
         make ${MAKEARGS} -C "${path}"
-      } > /dev/null;
+      } > $NULL;
+
+      libname="$path/lib$dep"
+      if test -f "$libname.a"; then
+        info "lib: '$libname.a' (static)"
+      fi
+
+      if test -f "$libname.so"; then
+        info "lib: '$libname.so' (shared)"
+      fi
+
+      if [ "1" -eq "$TEST" ]; then
+        verbose "make test -C ${path}"
+        info "test '${dep}'";
+        if [ "1" -eq "$VERBOSE" ]; then
+          echo
+          verbose "----------------------------------"
+          {
+            make test -C "${path}"
+          }
+          verbose "----------------------------------"
+          echo
+        else
+          {
+            make test -C "${path}"
+          } > $NULL;
+        fi
+      fi
     fi
   done
 fi
