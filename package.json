@@ -1,0 +1,9 @@
+{
+  "name": "clib-build",
+  "version": "0.0.1",
+  "repo": "jwerle/clib-build",
+  "description": "Small bash script for building clib dependencies",
+  "keywords": ["clib", "build", "util"],
+  "install": "make install"
+}
+
